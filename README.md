@@ -9,9 +9,7 @@ Este projeto de Educação Financeira foi desenvolvido em um esforço de co-cria
 
 ## 📸 Visão Geral das Funcionalidades
 
-![Dashboard do DebtControl](./dashboard.png)
-
-*(Salve a imagem que você fez como `dashboard.png` nesta mesma pasta para visualizá-la aqui)*
+![Dashboard do DebtControl](./print.png)
 
 ### O que você encontra na tela inicial:
 
