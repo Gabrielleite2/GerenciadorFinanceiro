@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Dívidas Pessoais</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <!-- Icons (Lucide) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i data-lucide="wallet"></i>
+                <span>DebtControl</span>
+            </div>
+            <div style="display: flex; gap: 1rem;">
+                <input type="file" id="nubank-csv-file" accept=".csv" style="display: none;" onchange="handleNubankCsv(event)">
+                <button class="btn" onclick="document.getElementById('nubank-csv-file').click()">
+                    <i data-lucide="upload"></i>
+                    Importar Fatura Nubank
+                </button>
+                <button class="btn btn-primary" onclick="openDebtModal()">
+                    <i data-lucide="plus"></i>
+                    Adicionar Dívida
+                </button>
+            </div>
+        </header>
+
+        <!-- Dashboard Widgets -->
+        <div class="dashboard-main">
+            <div style="display: flex; flex-direction: column; gap: 1.5rem;">
+                <div class="dashboard">
+                    <div class="card">
+                        <div class="card-title">
+                            <i data-lucide="banknote"></i>
+                            Total de Dívidas
+                        </div>
+                        <div class="card-value" id="dash-total">R$ 0,00</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">
+                            <i data-lucide="check-circle-2"></i>
+                            Já Pago
+                        </div>
+                        <div class="card-value" style="color: var(--status-emdia)" id="dash-paid">R$ 0,00</div>
+                    </div>
+                </div>
+                <div class="dashboard">
+                    <div class="card">
+                        <div class="card-title">
+                            <i data-lucide="calculator"></i>
+                            Restante a Pagar
+                        </div>
+                        <div class="card-value" style="color: var(--status-pendente)" id="dash-remaining">R$ 0,00</div>
+                    </div>
+                    <div class="card" style="border-color: rgba(239, 68, 68, 0.3);">
+                        <div class="card-title">
+                            <i data-lucide="alert-triangle"></i>
+                            Dívidas Atrasadas
+                        </div>
+                        <div class="card-value value-atrasado" id="dash-late-count">0</div>
+                    </div>
+                </div>
+                <div class="dashboard">
+                    <div class="card">
+                        <div class="card-title" style="justify-content: space-between;">
+                            <span style="display: flex; gap: 0.5rem; align-items: center;"><i data-lucide="wallet"></i> Minha Renda</span>
+                            <button class="icon-btn" onclick="editIncome()"><i data-lucide="edit-3"></i></button>
+                        </div>
+                        <div class="card-value" style="color: var(--neon-blue)" id="dash-income">R$ 0,00</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">
+                            <i data-lucide="scale"></i>
+                            Saldo Final
+                        </div>
+                        <div class="card-value" id="dash-balance">R$ 0,00</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="display: flex; flex-direction: column;">
+                <h3 class="font-syne" style="margin-bottom: 1rem;">Por Categoria</h3>
+                <div class="chart-container">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories -->
+        <div class="categories-wrapper" id="categories-container">
+            <!-- Rendered via JS -->
+        </div>
+
+        <!-- Debt Grid -->
+        <div class="section-header">
+            <h2 class="font-syne" id="current-category-title">Todas as Dívidas</h2>
+            <div class="debt-actions">
+                <button class="btn btn-danger" onclick="confirmDeleteAll()" style="margin-right: 0.5rem;">
+                    <i data-lucide="trash-2"></i>
+                    Apagar Tudo
+                </button>
+                <button class="btn" onclick="openCategoryModal()">
+                    <i data-lucide="folder-plus"></i>
+                    Nova Categoria
+                </button>
+            </div>
+        </div>
+
+        <div class="debt-grid" id="debt-grid">
+            <!-- Rendered via JS -->
+        </div>
+    </div>
+
+    <!-- Debt Modal -->
+    <div class="modal-overlay" id="debt-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title" id="debt-modal-title">Adicionar Dívida</h3>
+                <button class="modal-close" onclick="closeModal('debt-modal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="debt-id">
+                
+                <div class="form-group">
+                    <label for="debt-name">Nome da Dívida *</label>
+                    <input type="text" id="debt-name" class="form-control" placeholder="ex: Plano de saúde" required>
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="debt-total">Valor Total *</label>
+                        <input type="number" id="debt-total" class="form-control" placeholder="0.00" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="debt-paid">Valor já pago</label>
+                        <input type="number" id="debt-paid" class="form-control" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="debt-due">Data de Vencimento *</label>
+                        <input type="date" id="debt-due" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="debt-status">Status</label>
+                        <select id="debt-status" class="form-control">
+                            <option value="Pendente">Pendente</option>
+                            <option value="Em dia">Em dia</option>
+                            <option value="Atrasada">Atrasada</option>
+                            <option value="Paga">Paga</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="debt-category">Categoria *</label>
+                    <select id="debt-category" class="form-control" required>
+                        <!-- Rendered via JS -->
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="debt-notes">Notas/Observações</label>
+                    <textarea id="debt-notes" class="form-control" placeholder="Detalhes adicionais..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('debt-modal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveDebt()">Salvar Dívida</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div class="modal-overlay" id="category-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 class="modal-title">Nova Categoria</h3>
+                <button class="modal-close" onclick="closeModal('category-modal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="cat-name">Nome da Categoria *</label>
+                    <input type="text" id="cat-name" class="form-control" placeholder="ex: Transporte" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="cat-emoji">Emoji *</label>
+                    <input type="text" id="cat-emoji" class="form-control" placeholder="🚗" maxlength="2" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Cor Identificadora *</label>
+                    <div class="color-picker" id="color-picker">
+                        <!-- Rendered via JS -->
+                    </div>
+                    <input type="hidden" id="cat-color" value="#3b82f6">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('category-modal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveCategory()">Adicionar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal-overlay" id="confirm-modal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title" style="color: #fca5a5;">Confirmar Exclusão</h3>
+                <button class="modal-close" onclick="closeModal('confirm-modal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-text">Tem certeza que deseja excluir este item?</p>
+                <input type="hidden" id="confirm-action-id">
+                <input type="hidden" id="confirm-action-type">
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('confirm-modal')">Cancelar</button>
+                <button class="btn btn-danger" onclick="executeDelete()">Sim, Excluir</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Import Review Modal -->
+    <div class="modal-overlay" id="import-review-modal">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Revisar Importação Nubank</h3>
+                <button class="modal-close" onclick="closeModal('import-review-modal'); document.getElementById('nubank-csv-file').value = '';">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-muted); font-size: 0.875rem;">Verifique os itens identificados e ajuste a categoria se necessário antes de salvar.</p>
+                
+                <!-- Import Items List -->
+                <div class="import-list" id="import-review-list">
+                    <!-- Rendered via JS -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('import-review-modal'); document.getElementById('nubank-csv-file').value = '';">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmImport()">Confirmar Importação</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Income Modal -->
+    <div class="modal-overlay" id="income-modal">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3 class="modal-title">Definir Renda Mensal</h3>
+                <button class="modal-close" onclick="closeModal('income-modal')">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="income-value">Sua Renda / Salário Mensal (R$)</label>
+                    <input type="number" id="income-value" class="form-control" placeholder="0.00" step="0.01" min="0">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal('income-modal')">Cancelar</button>
+                <button class="btn btn-primary" onclick="saveIncome()">Salvar Renda</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Scripts -->
+    <script src="js/main.js"></script>
+</body>
+</html>
